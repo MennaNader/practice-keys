@@ -1,0 +1,31 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: "**/package-lock.json" }
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm ci
+        working-directory: web
+      - run: npm run typecheck
+        working-directory: web
+      - run: npm run build # the Claude build (one html file)
+        working-directory: web
+      - run: npm run build:pages # the GitHub Pages build
+        working-directory: web
+        env:
+          VITE_TARGET: pages
+      - name: The Pages build must not contain the Ableton code
+        run: "! grep -rl 'get_session_info' web/dist-pages"

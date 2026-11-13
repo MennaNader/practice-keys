@@ -1,0 +1,16 @@
+{
+  "name": "theory-core",
+  "version": "0.1.0",
+  "description": "Music theory engine: pitch, intervals, scales. Built to learn the theory by coding it.",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}
