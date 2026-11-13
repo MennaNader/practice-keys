@@ -5,6 +5,8 @@ import {
   MAJOR_STEPS,
   MAQAMAT,
   MAQAM_START,
+  maqamSong,
+  seededRandom,
   type MaqamName,
   KICK,
   SNARE,
@@ -29,6 +31,8 @@ import {
 import { RootPicker, Segmented } from "./Pickers";
 import { buildMaqamExport, maqamClips, saveFile } from "./exportMaqam";
 import { IS_PAGES } from "./target";
+import { addSong, hasSong, isCounters, isSongList, removeSong, type Counters, type SavedSong } from "./songs";
+import { load, save } from "./store";
 import type { CallTool } from "./liveSend";
 import type { DrumKind, Instrument } from "./audio";
 import type { Drum, Step } from "./player";
@@ -570,6 +574,68 @@ export function MaqamPanel({ rootPc, onRoot, maqam, onMaqam, startMidi, instrume
   const playMaqam = () =>
     play(spell.keys.map((k, i) => ({ at: i * 430, dur: 400, midis: [midiAt(k)], tag: `maqam-${i}` })));
 
+  // A "song" is a random tune made only from this maqam's notes. The seed is kept when you change maqam or home note,
+  // so you can hear the SAME tune in another maqam and notice how the mood changes.
+  const BEAT_MS = 600;
+  const [songSeed, setSongSeed] = useState<number | null>(null);
+  const [drone, setDrone] = useState(true);
+  const song = useMemo(() => (songSeed === null ? null : maqamSong(seededRandom(songSeed))), [songSeed]);
+  const playSong = (seed: number | null = songSeed) => {
+    if (seed === null) return;
+    const notes = maqamSong(seededRandom(seed));
+    const end = notes[notes.length - 1]!;
+    const totalMs = (end.startBeat + end.beats) * BEAT_MS;
+    play([
+      ...(drone ? [{ at: 0, dur: totalMs, midis: [midiAt(spell.keys[0] as number) - 12] }] : []),
+      ...notes.map((n) => ({ at: n.startBeat * BEAT_MS, dur: n.beats * BEAT_MS * 0.92, midis: [midiAt(spell.keys[n.degree] as number)], tag: `maqam-${n.degree}` })),
+    ]);
+  };
+  // Saved songs live in localStorage (this browser only). A song is its maqam, home note and seed.
+  const [saved, setSaved] = useState<SavedSong[]>(() => load<SavedSong[]>("songs", [], isSongList));
+  const [counters, setCounters] = useState<Counters>(() => load<Counters>("song-counters", {}, isCounters));
+  const [songMsg, setSongMsg] = useState("");
+  useEffect(() => save("songs", saved), [saved]);
+  useEffect(() => save("song-counters", counters), [counters]);
+  const current = songSeed === null ? null : saved.find((x) => x.maqam === maqam && x.rootPc === rootPc && x.seed === songSeed) ?? null;
+  const saveSong = () => {
+    if (songSeed === null) return;
+    try {
+      const r = addSong(saved, counters, { maqam, rootPc, seed: songSeed });
+      setSaved(r.list);
+      setCounters(r.counters);
+      setSongMsg(`Saved as ${r.song.name}.`);
+    } catch (e) {
+      setSongMsg((e as Error).message);
+    }
+  };
+  const deleteSong = (name: string) => {
+    setSaved((l) => removeSong(l, name));
+    setSongMsg(`Deleted ${name}.`);
+  };
+  // Playing a saved song first switches to its maqam and home note (the keys are re-tuned for them), then plays.
+  const [pending, setPending] = useState<number | null>(null);
+  const openSong = (x: SavedSong) => {
+    onMaqam(x.maqam);
+    onRoot(x.rootPc);
+    setSongSeed(x.seed);
+    setPending(x.seed);
+    setSongMsg("");
+  };
+  useEffect(() => {
+    if (pending === null || songSeed !== pending) return;
+    const t = window.setTimeout(() => {
+      playSong(pending);
+      setPending(null);
+    }, 80); // wait one moment so the new tuning is in place
+    return () => window.clearTimeout(t);
+  }, [pending, songSeed, maqam, rootPc]);
+
+  const newSong = () => {
+    const seed = Math.floor(Math.random() * 2 ** 32);
+    setSongSeed(seed);
+    playSong(seed);
+  };
+
   const majorKeys = [0, 2, 4, 5, 7, 9, 11, 12];
   const playCompare = () => {
     const gap = majorKeys.length * 430 + 500;
@@ -622,6 +688,52 @@ export function MaqamPanel({ rootPc, onRoot, maqam, onMaqam, startMidi, instrume
         <button type="button" className="btn primary" onClick={playMaqam}>Play {label}</button>
         <button type="button" className="btn" onClick={playCompare}>Play major, then {label}</button>
       </div>
+      <div className="stack">
+        <div className="field-label">Song</div>
+        <div className="row">
+          <button type="button" className="btn primary" onClick={newSong}>Song</button>
+          <button type="button" className="btn" onClick={() => playSong()} disabled={song === null}>Play this song again</button>
+          <button type="button" className="btn" onClick={saveSong} disabled={song === null || current !== null}>
+            {current ? `Saved: ${current.name}` : "Save song"}
+          </button>
+          <label className="check">
+            <input type="checkbox" checked={drone} onChange={(e) => setDrone(e.target.checked)} /> Drone (low home note)
+          </label>
+        </div>
+        {song && (
+          <ol className="notes" aria-label="The song's notes">
+            {song.map((n, i) => (
+              <li key={i} className={n.degree === 0 || n.degree === 7 ? "home" : ""}>
+                {spell.names[n.degree]}
+                <small>{n.beats === 1 ? "" : `${n.beats} beats`}</small>
+              </li>
+            ))}
+          </ol>
+        )}
+        {songMsg && <span className="note" role="status">{songMsg}</span>}
+        <div>
+          <div className="field-label">Saved songs ({saved.length})</div>
+          {saved.length === 0 ? (
+            <p className="note">Nothing saved yet. Make a song you like and press <b>Save song</b>. Saved songs stay in this browser.</p>
+          ) : (
+            <ul className="saved">
+              {saved.map((x) => (
+                <li key={x.name} className={current?.name === x.name ? "now" : ""}>
+                  <b>{x.name}</b> <span className="mono">on {ROOTS[x.rootPc]!.name}</span>
+                  <span className="grow" />
+                  <button type="button" className="btn small" onClick={() => openSong(x)} aria-label={`Play ${x.name}`}>Play</button>
+                  <button type="button" className="btn small ghost" onClick={() => deleteSong(x.name)} aria-label={`Delete ${x.name}`}>Delete</button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <p className="note">
+          <b>Song</b> invents a new 4-bar tune using only the notes of {label}. It starts and ends on the home note and rests halfway on the 5th
+          note or home. Change the maqam, then press <b>Play this song again</b> to hear the same tune with different notes.
+        </p>
+      </div>
+
       <div>
         <div className="field-label">Chords (every second note stacked)</div>
         <ol className="chords">

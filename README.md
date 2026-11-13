@@ -18,6 +18,7 @@ npm run typecheck
 | `src/pitch.ts` | MIDI numbers, pitch classes, 12-TET, note names, enharmonics, frequency |
 | `src/interval.ts` | Semitone distances, interval names, inversion, consonance |
 | `src/scale.ts` | Step patterns, modes as rotations, proper note spelling, pentatonic/blues/symmetric scales |
+| `src/maqamSong.ts` | Seeded random tunes: small steps, resting notes (qarar, ghammaz), bar rhythms |
 | `test/*.test.ts` | Executable examples of each rule |
 
 Each source file opens with a "LESSON" comment. Read it, then read the matching test file, then change something and see what breaks.

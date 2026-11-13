@@ -8,3 +8,4 @@ export * from "./voice";
 export * from "./midi";
 export * from "./tuning";
 export * from "./midifile";
+export * from "./maqamSong";
