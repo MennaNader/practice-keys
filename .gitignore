@@ -1,3 +1,28 @@
+# Dependencies (matches root and web/)
 node_modules
+
+# Build output
 dist
 web/dist-pages
+*.tsbuildinfo
+
+# Test coverage
+coverage
+
+# Logs
+npm-debug.log*
+*.log
+
+# Local env overrides (web/.env.pages is NOT ignored: the Pages build needs it)
+.env.local
+.env.*.local
+
+# OS / editor
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea
+
+# Private notes
+DEPLOY.md
+CLAUDE.md
