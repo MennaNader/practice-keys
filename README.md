@@ -1,36 +1,41 @@
 # theory-core
 
-A music theory engine in TypeScript, built to learn the theory by implementing it. No runtime dependencies, no UI. The tests double as study notes.
+A music theory engine in TypeScript, plus a React app built on it ("Practice Keys"). The project exists to learn music theory by implementing it, and to have something useful for music production in Ableton Live.
+
+## Current state
+
+The project has two parts.
+
+**The engine (`src/`)** is a plain TypeScript library: pure functions, no runtime dependencies, no UI. It covers:
+
+- **Notes and intervals:** MIDI numbers, pitch classes, note names and enharmonics (C# vs Db), frequencies, interval names.
+- **Scales and modes:** step patterns, modes as rotations, correct spelling (each letter once).
+- **Chords and keys:** major, minor and diminished chords, the 7 chords in a key, Roman numerals, home/away/push functions.
+- **Rhythm and voice leading:** beats and tempo, drum patterns, smoothest moves between chords.
+- **MIDI:** reading messages from a MIDI keyboard (such as the MPK mini) and writing `.mid` files.
+- **Maqam:** a 24-step tuning (quarter tones) and six maqamat: Rast, Hijaz, Bayati, Sika, Nahawand, Saba. Chords in a maqam and Scala tuning files are included too.
+- **Maqam tunes:** seeded random tunes from a maqam's notes. The same seed always gives the same tune.
+
+Each source file opens with a `LESSON` comment that explains the theory, and the tests in `test/` are written as study notes.
+
+**The app (`web/`)** is a playable piano that explains what you play. It has five tabs:
+
+| Tab | What it does |
+|---|---|
+| Play | Free play with mouse, touch, computer keyboard or a MIDI keyboard |
+| Scales | Pick a home note and scale, see the spelled notes and hear them |
+| Chords | Build chords and play progressions, with a song maker |
+| Maqam | Re-tunes the keys for a maqam, makes and saves random tunes (Rast-1, ...) and exports them to Ableton |
+| Quiz | Find a note, count semitones, or build a chord, with an explanation after every answer |
+
+The quiz keeps your score and best streak in the browser. The app also has an oud sound, drum pads and MIDI keyboard input. It can be published with GitHub Pages ([DEPLOY.md](DEPLOY.md)). More app details are in [web/README.md](web/README.md).
 
 ## Run it
 
 ```bash
 npm install
-npm test            # run once
-npm run test:watch  # re-run on save
+npm test            # engine and app tests
 npm run typecheck
+
+cd web && npm install && npm run dev   # the app, at http://localhost:5173
 ```
-
-## Layout
-
-| File | What it teaches |
-|---|---|
-| `src/pitch.ts` | MIDI numbers, pitch classes, 12-TET, note names, enharmonics, frequency |
-| `src/interval.ts` | Semitone distances, interval names, inversion, consonance |
-| `src/scale.ts` | Step patterns, modes as rotations, proper note spelling, pentatonic/blues/symmetric scales |
-| `src/maqamSong.ts` | Seeded random tunes: small steps, resting notes (qarar, ghammaz), bar rhythms |
-| `test/*.test.ts` | Executable examples of each rule |
-
-Each source file opens with a "LESSON" comment. Read it, then read the matching test file, then change something and see what breaks.
-
-## Exercises
-
-1. Add `minorSeventh`-style names for diminished/augmented intervals. Why can't semitones alone distinguish A4 from d5?
-2. Add `relativeMinor(root)` and `parallelMinor(root)`. Test them.
-3. Write `scaleDegree(note, root, scale)`: which degree (1-7) is this note, or `null` if it's outside the scale?
-4. Add the remaining modes of harmonic minor (Phrygian dominant is the interesting one).
-5. Add `Hijaz` as a step pattern. It won't fit in 12 semitones cleanly. That is where lesson 6 (quarter tones) starts.
-
-## Next: step 2
-
-Chords and voicings: build triads and 7ths by stacking thirds from scale degrees, then Roman numeral analysis. It will reuse `scaleNotes` and `scalePitchClasses` directly.
